@@ -5,7 +5,7 @@ console.log("Starting on port 8080");
 
 wss.on('connection', function connection(ws) {
   ws.on('message', function incoming(data) {
-    console.log("Recieved Message");
+    console.log("Recieved message " + data);
 
     // Broadcast to everyone else.
     wss.clients.forEach(function each(client) {
