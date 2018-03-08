@@ -19,7 +19,7 @@ wss.on('connection', function connection(ws) {
     // Broadcast to everyone else.
     wss.clients.forEach(function each(client) {
       if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(data));
+        client.send(data);
       }
     });
   });
