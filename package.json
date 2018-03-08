@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/bplaxco/codingclub-websocket-server/issues"
   },
-  "homepage": "https://github.com/bplaxco/codingclub-websocket-server#readme"
+  "homepage": "https://github.com/bplaxco/codingclub-websocket-server#readme",
+  "dependencies": {
+    "ws": "^5.0.0"
+  }
 }
