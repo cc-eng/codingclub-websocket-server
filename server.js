@@ -8,7 +8,7 @@ wss.on('connection', function connection(ws) {
     var msg;
 
     try {
-      msg = JSON.parse(data):
+      msg = JSON.parse(data);
     } catch (err) {
       console.log(err);
       return;
