@@ -1,0 +1,19 @@
+{
+  "name": "codingclub-websocket-server",
+  "version": "1.0.0",
+  "description": "A simple web socket server for the coding club I run",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/bplaxco/codingclub-websocket-server.git"
+  },
+  "author": "Braxton Plaxco",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/bplaxco/codingclub-websocket-server/issues"
+  },
+  "homepage": "https://github.com/bplaxco/codingclub-websocket-server#readme"
+}
