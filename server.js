@@ -62,6 +62,7 @@ class Config {
       if (fs.existsSync(CONFIG_PATHS[i])) {
         console.log("Using config from: " + CONFIG_PATHS[i]);
         Object.assign(this, JSON.parse(fs.readFileSync(CONFIG_PATHS[i])));
+        break;
       }
     }
   }
