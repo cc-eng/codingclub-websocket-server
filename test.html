@@ -18,8 +18,14 @@
         console.log("Connected!");
 
         ws.send(JSON.stringify({
+          "command": {"name": "join", "channel": "test"},
+          "authtoken": "changeit",
+        }));
+
+        ws.send(JSON.stringify({
           "message": "Hello World",
-          "authtoken": "changeit"
+          "authtoken": "changeit",
+          "channel": "test",
         }));
       };
 

@@ -3,53 +3,85 @@
 const WebSocket = require('ws');
 const fs = require('fs');
 
+const CONFIG_PATHS = [
+  "/etc/codingclub/config.json",
+  "./config.json",
+];
 
-function tryFile(path, resolve, reject, ifnotfile) {
-  fs.stat(path, function (err, stat) {
-    if (err) return ifnotfile();
+class ChannelBroker {
+  constructor() {
+    this.channels = {};
+  }
 
-    fs.readFile(path, function (err, data) {
-      if (err) return reject(err);
+  getClients(name) {
+    if (!this.channels[name]) {
+      this.channels[name] = [];
+    }
 
-      resolve(JSON.parse(data));
-    });
+    return this.channels[name];
+  }
 
-  });
+  addToChannel(name, client) {
+    console.log("Adding client to " + name);
+    var clients = this.getClients(name);
+
+    if (clients.indexOf(client) > -1) {
+      console.log("Client already in channel!");
+      return;
+    }
+
+    clients.push(client);
+  }
+
+  removeFromChannel(name, client) {
+    var clients = this.getClients(name);
+    var i = clients.indexOf(client);
+
+    if (i > -1) {
+      clients.splice(i, 1);
+    }
+  }
+
+  removeFromAll(client) {
+    var channelNames = Object.keys(this.channels);
+
+    for (var i = 0; i < channelNames.length; i++) {
+      this.removeFromChannel(channelNames[i], client);
+    }
+  }
 }
 
 
 class Config {
   constructor() {
-    this.cPromise = new Promise(function (resolve, reject) {
-      tryFile("/etc/codingclub/config.json", resolve, reject, function () {
-        tryFile("./config.json", resolve, reject, function () { resolve({
-          port: 8080,
-        })});
-      });
-    });
-  }
+    /* Defaults */
+    this.port = 8080
 
-  ready(callback) {
-    this.cPromise.then(callback, function (err) { console.log(err) });
+    /* Pull in values from the config file*/
+    for (var i = 0; i < CONFIG_PATHS.length; i++) {
+      if (fs.existsSync(CONFIG_PATHS[i])) {
+        console.log("Using config from: " + CONFIG_PATHS[i]);
+        Object.assign(this, JSON.parse(fs.readFileSync(CONFIG_PATHS[i])));
+      }
+    }
   }
 }
 
 
 class Server {
-  constructor(ops) {
-    this.port = ops.port;
-    this.authtoken = ops.authtoken;
-    if (!this.authtoken) console.log("Warning this server is not secured!");
+  constructor(config) {
+    this.config = config;
+    this.channels = new ChannelBroker();
+
+    if (!this.config.authtoken) {
+      console.log("Warning this server is not secured!");
+    }
   }
 
-  clean(data) {
-    var out = {};
-
-    Object.keys(data).forEach(function (k) {
-      if (k != "authtoken")  out[k] = data[k];
-    });
-
-    return out;
+  cleanMsg(data) {
+    var cleaned = Object.assign({}, data);
+    delete cleaned["authtoken"];
+    return cleaned;
   }
 
   send(client, msg) {
@@ -57,52 +89,73 @@ class Server {
     client.send(JSON.stringify(msg));
   }
 
-  broadcast(sender, msg) {
-    this.wss.clients.forEach(function (client) {
+  broadcast(sender, clients, msg) {
+    clients.forEach(function(client) {
       if (client !== sender && client.readyState === WebSocket.OPEN) {
         this.send(client, msg);
       }
     }.bind(this));
   }
 
-  get wss() {
-    if (!this._wss) {
-      console.log("Starting on port " + this.port);
-      this._wss = new WebSocket.Server({ port: this.port});
-    }
+  handleCommand(client, command) {
+    console.log("Handeling command " + JSON.stringify(command));
 
-    return this._wss;
+    try {
+      var name = command.name.toLowerCase();
+
+      if (name == "join" && command.channel) {
+          this.channels.addToChannel(command.channel, client);
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  handleClient(client) {
+    client.on('close', function () {
+      console.log("Client disconnected");
+      this.channels.removeFromAll(client);
+    }.bind(this));
+
+    client.on('message', function (data) {
+      try {
+        var rawMsg = JSON.parse(data);
+        var msg = this.cleanMsg(rawMsg);
+      } catch (err) {
+        return console.log(err);
+      }
+
+      console.log("Recieved message " + JSON.stringify(msg));
+
+      if (this.config.authtoken != rawMsg.authtoken) {
+        console.log("Authentication Failed")
+        return this.send(client, {"error": "Invalid Auth Token"});
+      }
+
+      if (msg.command) {
+        return this.handleCommand(client, msg.command);
+      }
+
+      if (msg.channel) {
+        console.log("Sending to channel");
+        this.broadcast(client, this.channels.getClients(msg.channel), msg);
+      } else {
+        console.log("Sending to all");
+        this.broadcast(client, this.wss.clients, msg);
+      }
+    }.bind(this));
   }
 
   start() {
-    this.wss.on('connection', function (ws) {
-      ws.on('message', function (data) {
-        try {
-          var rawMsg = JSON.parse(data);
-          var msg = this.clean(rawMsg);
-        } catch (err) {
-          return console.log(err);
-        }
+    console.log("Starting on port " + this.config.port);
+    this.wss = new WebSocket.Server({
+      port: this.config.port
+    });
 
-        console.log("Recieved message " + JSON.stringify(msg));
-
-        if (this.authtoken != rawMsg.authtoken) {
-          console.log("Authentication Failed")
-          return this.send(ws, {"error": "Invalid Auth Token"});
-        }
-
-        this.broadcast(ws, msg);
-
-      }.bind(this)); // end on message
-    }.bind(this)); // end on connection
+    this.wss.on('connection', client => this.handleClient(client));
   }
 }
 
 /* Start Server */
 
-new Config().ready(function (ops) {
-  new Server({
-    port: ops.port,
-    authtoken: ops.authtoken
-  }).start();
-})
+new Server(new Config()).start();
