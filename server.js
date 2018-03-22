@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 const WebSocket = require('ws');
 const fs = require('fs');
@@ -22,7 +22,9 @@ class Config {
   constructor() {
     this.cPromise = new Promise(function (resolve, reject) {
       tryFile("/etc/codingclub/config.json", resolve, reject, function () {
-        tryFile("./config.json", resolve, reject, function () { resolve({}) });
+        tryFile("./config.json", resolve, reject, function () { resolve({
+          port: 8080,
+        })});
       });
     });
   }
@@ -31,6 +33,7 @@ class Config {
     this.cPromise.then(callback, function (err) { console.log(err) });
   }
 }
+
 
 class Server {
   constructor(ops) {
@@ -99,7 +102,7 @@ class Server {
 
 new Config().ready(function (ops) {
   new Server({
-    port: ops.port || 8080,
+    port: ops.port,
     authtoken: ops.authtoken
   }).start();
 })
