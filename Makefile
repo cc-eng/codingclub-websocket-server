@@ -1,0 +1,2 @@
+runserver:
+	npm run start
